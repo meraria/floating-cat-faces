@@ -34,12 +34,15 @@
     <script>
         let cats = [];
         let draggedCat = null;
-        let gravity = 0.05; // Upward force for floating effect
+        let gravity = 0.08; // Upward force for floating effect (increased)
         let damping = 0.98; // Air resistance
         let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         let touchStartX = 0;
         let touchStartY = 0;
         let lastTouchTime = 0;
+        let lastTouchX = 0;
+        let lastTouchY = 0;
+        let doubleTapDelay = 300; // milliseconds for double tap detection
         
         function setup() {
             createCanvas(windowWidth, windowHeight);
@@ -79,12 +82,14 @@
             return {
                 x: x,
                 y: y,
-                vx: random(-2, 2),
-                vy: random(-2, 2),
+                vx: random(-2.5, 2.5), // Slightly faster initial velocity
+                vy: random(-2.5, 2.5),
                 size: random(minSize, maxSize),
                 rotation: 0,
-                rotationSpeed: random(-0.02, 0.02),
-                isDragging: false
+                rotationSpeed: random(-0.03, 0.03), // More rotation
+                isDragging: false,
+                floatOffset: random(0, TWO_PI), // For floating animation
+                floatSpeed: random(0.02, 0.05) // Speed of floating motion
             };
         }
         
@@ -97,9 +102,14 @@
                     // Apply gravity (upward force for floating effect)
                     cat.vy -= gravity;
                     
-                    // Update position
-                    cat.x += cat.vx;
-                    cat.y += cat.vy;
+                    // Add floating motion (gentle drift)
+                    cat.floatOffset += cat.floatSpeed;
+                    let floatX = cos(cat.floatOffset) * 0.5;
+                    let floatY = sin(cat.floatOffset * 0.7) * 0.5;
+                    
+                    // Update position with floating motion
+                    cat.x += cat.vx + floatX;
+                    cat.y += cat.vy + floatY;
                     
                     // Apply damping (air resistance)
                     cat.vx *= damping;
@@ -209,14 +219,31 @@
         }
         
         function mousePressed() {
+            touchStartX = mouseX;
+            touchStartY = mouseY;
             handleInteraction(mouseX, mouseY);
         }
         
         function touchStarted() {
             if (touches.length > 0) {
                 let touch = touches[0];
+                let currentTime = Date.now();
+                let timeSinceLastTouch = currentTime - lastTouchTime;
+                let distance = dist(touch.x, touch.y, lastTouchX, lastTouchY);
+                
+                // Check for double tap (within time and distance threshold)
+                if (timeSinceLastTouch < doubleTapDelay && distance < 50 && !draggedCat) {
+                    // Double tap detected - add new cat at tap location
+                    cats.push(createRagdollCat(touch.x, touch.y));
+                    lastTouchTime = 0; // Reset to prevent triple tap
+                    return false;
+                }
+                
                 touchStartX = touch.x;
                 touchStartY = touch.y;
+                lastTouchX = touch.x;
+                lastTouchY = touch.y;
+                lastTouchTime = currentTime;
                 handleInteraction(touch.x, touch.y);
             }
             return false; // Prevent default
@@ -230,6 +257,9 @@
                 if (d < cat.size / 2) {
                     draggedCat = cat;
                     cat.isDragging = true;
+                    // Store initial position for velocity calculation
+                    touchStartX = x;
+                    touchStartY = y;
                     cat.vx = 0;
                     cat.vy = 0;
                     return;
@@ -239,6 +269,7 @@
         
         function mouseDragged() {
             if (draggedCat) {
+                // Smooth dragging with mouse
                 draggedCat.x = mouseX;
                 draggedCat.y = mouseY;
             }
@@ -247,13 +278,25 @@
         function touchMoved() {
             if (draggedCat && touches.length > 0) {
                 let touch = touches[0];
+                // Smooth dragging
                 draggedCat.x = touch.x;
                 draggedCat.y = touch.y;
+                // Update last position for double tap detection
+                lastTouchX = touch.x;
+                lastTouchY = touch.y;
             }
             return false; // Prevent scrolling
         }
         
         function mouseReleased() {
+            if (draggedCat) {
+                // Calculate velocity from mouse movement
+                let dragDistance = dist(mouseX, mouseY, touchStartX, touchStartY);
+                if (dragDistance > 10) {
+                    draggedCat.vx = (mouseX - pmouseX) * 0.3;
+                    draggedCat.vy = (mouseY - pmouseY) * 0.3;
+                }
+            }
             releaseCat();
         }
         
@@ -261,18 +304,14 @@
             let touch = touches.length > 0 ? touches[0] : null;
             
             if (draggedCat && touch) {
-                // Calculate velocity from touch movement
-                draggedCat.vx = (touch.x - touchStartX) * 0.2;
-                draggedCat.vy = (touch.y - touchStartY) * 0.2;
+                // Calculate velocity from touch movement for smooth release
+                let dragDistance = dist(touch.x, touch.y, touchStartX, touchStartY);
+                if (dragDistance > 10) { // Only apply velocity if actually dragged
+                    draggedCat.vx = (touch.x - touchStartX) * 0.25;
+                    draggedCat.vy = (touch.y - touchStartY) * 0.25;
+                }
             }
             releaseCat();
-            
-            // Handle double tap to add cat
-            let currentTime = Date.now();
-            if (touch && currentTime - lastTouchTime < 300) {
-                cats.push(createRagdollCat(touch.x, touch.y));
-            }
-            lastTouchTime = currentTime;
             
             return false;
         }
@@ -280,18 +319,14 @@
         function releaseCat() {
             if (draggedCat) {
                 draggedCat.isDragging = false;
-                // Give it some velocity based on drag movement
-                if (!isMobile) {
-                    draggedCat.vx = (mouseX - pmouseX) * 0.3;
-                    draggedCat.vy = (mouseY - pmouseY) * 0.3;
-                }
                 draggedCat = null;
             }
         }
         
         function doubleClicked() {
             // Add a new ragdoll cat where the user double-clicks (desktop only)
-            if (!isMobile) {
+            // Only add if not dragging a cat
+            if (!isMobile && !draggedCat) {
                 cats.push(createRagdollCat(mouseX, mouseY));
             }
         }
