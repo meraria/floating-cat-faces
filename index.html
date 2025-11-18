@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Floating Cat Faces</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+    </style>
+</head>
+<body>
+    <script>
+        let cats = [];
+        let draggedCat = null;
+        let gravity = 0.05; // Upward force for floating effect
+        let damping = 0.98; // Air resistance
+        
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            // Create 6 ragdoll cats with random positions
+            for (let i = 0; i < 6; i++) {
+                cats.push(createRagdollCat(random(100, width - 100), random(100, height - 100)));
+            }
+        }
+        
+        function createRagdollCat(x, y) {
+            return {
+                x: x,
+                y: y,
+                vx: random(-2, 2),
+                vy: random(-2, 2),
+                size: random(70, 110),
+                rotation: 0,
+                rotationSpeed: random(-0.02, 0.02),
+                isDragging: false
+            };
+        }
+        
+        function draw() {
+            background(220, 240, 255); // Light blue background
+            
+            // Update and draw each cat
+            for (let cat of cats) {
+                if (!cat.isDragging) {
+                    // Apply gravity (upward force for floating effect)
+                    cat.vy -= gravity;
+                    
+                    // Update position
+                    cat.x += cat.vx;
+                    cat.y += cat.vy;
+                    
+                    // Apply damping (air resistance)
+                    cat.vx *= damping;
+                    cat.vy *= damping;
+                    
+                    // Bounce off edges with some energy loss
+                    if (cat.x < cat.size/2) {
+                        cat.x = cat.size/2;
+                        cat.vx *= -0.7;
+                    }
+                    if (cat.x > width - cat.size/2) {
+                        cat.x = width - cat.size/2;
+                        cat.vx *= -0.7;
+                    }
+                    if (cat.y < cat.size/2) {
+                        cat.y = cat.size/2;
+                        cat.vy *= -0.7;
+                    }
+                    if (cat.y > height - cat.size/2) {
+                        cat.y = height - cat.size/2;
+                        cat.vy *= -0.7;
+                    }
+                    
+                    cat.rotation += cat.rotationSpeed;
+                }
+                
+                // Draw cat
+                push();
+                translate(cat.x, cat.y);
+                rotate(cat.rotation);
+                drawRagdollCat(0, 0, cat.size);
+                pop();
+            }
+        }
+        
+        function drawRagdollCat(x, y, size) {
+            let s = size / 80; // Scale factor
+            
+            // Head (cream/white color)
+            fill(250, 245, 235);
+            stroke(0);
+            strokeWeight(2 * s);
+            ellipse(x, y, 60 * s, 50 * s);
+            
+            // Dark points on ears (seal point coloring)
+            fill(100, 90, 80);
+            triangle(x - 25 * s, y - 20 * s, x - 15 * s, y - 10 * s, x - 10 * s, y - 25 * s);
+            triangle(x + 25 * s, y - 20 * s, x + 15 * s, y - 10 * s, x + 10 * s, y - 25 * s);
+            
+            // Inner ears (pink)
+            fill(255, 200, 210);
+            noStroke();
+            triangle(x - 22 * s, y - 18 * s, x - 16 * s, y - 13 * s, x - 13 * s, y - 22 * s);
+            triangle(x + 22 * s, y - 18 * s, x + 16 * s, y - 13 * s, x + 13 * s, y - 22 * s);
+            
+            // Eyes (distinctive blue eyes of ragdolls)
+            fill(135, 206, 250); // Sky blue
+            stroke(0);
+            strokeWeight(2 * s);
+            ellipse(x - 15 * s, y - 5 * s, 16 * s, 22 * s);
+            ellipse(x + 15 * s, y - 5 * s, 16 * s, 22 * s);
+            
+            // Pupils
+            fill(0);
+            noStroke();
+            ellipse(x - 15 * s, y - 3 * s, 6 * s, 14 * s);
+            ellipse(x + 15 * s, y - 3 * s, 6 * s, 14 * s);
+            
+            // Eye highlights
+            fill(255);
+            ellipse(x - 13 * s, y - 7 * s, 5 * s, 5 * s);
+            ellipse(x + 17 * s, y - 7 * s, 5 * s, 5 * s);
+            
+            // Dark mask on face (color point)
+            fill(100, 90, 80, 100);
+            noStroke();
+            ellipse(x, y + 5 * s, 40 * s, 25 * s);
+            
+            // Nose (darker)
+            fill(80, 70, 60);
+            stroke(0);
+            strokeWeight(1.5 * s);
+            triangle(x - 3 * s, y + 5 * s, x + 3 * s, y + 5 * s, x, y + 10 * s);
+            
+            // Mouth
+            noFill();
+            stroke(0);
+            strokeWeight(2 * s);
+            arc(x - 8 * s, y + 10 * s, 10 * s, 8 * s, 0, PI);
+            arc(x + 8 * s, y + 10 * s, 10 * s, 8 * s, 0, PI);
+            
+            // Whiskers (white)
+            stroke(255);
+            strokeWeight(1.5 * s);
+            line(x - 30 * s, y, x - 45 * s, y - 5 * s);
+            line(x - 30 * s, y + 5 * s, x - 45 * s, y + 5 * s);
+            line(x - 30 * s, y + 10 * s, x - 45 * s, y + 15 * s);
+            line(x + 30 * s, y, x + 45 * s, y - 5 * s);
+            line(x + 30 * s, y + 5 * s, x + 45 * s, y + 5 * s);
+            line(x + 30 * s, y + 10 * s, x + 45 * s, y + 15 * s);
+            
+            // Fluffy cheeks
+            fill(250, 245, 235);
+            noStroke();
+            ellipse(x - 30 * s, y + 8 * s, 12 * s, 10 * s);
+            ellipse(x + 30 * s, y + 8 * s, 12 * s, 10 * s);
+        }
+        
+        function mousePressed() {
+            // Check if mouse is over any cat
+            for (let i = cats.length - 1; i >= 0; i--) {
+                let cat = cats[i];
+                let d = dist(mouseX, mouseY, cat.x, cat.y);
+                if (d < cat.size / 2) {
+                    draggedCat = cat;
+                    cat.isDragging = true;
+                    cat.vx = 0;
+                    cat.vy = 0;
+                    return;
+                }
+            }
+        }
+        
+        function mouseDragged() {
+            if (draggedCat) {
+                draggedCat.x = mouseX;
+                draggedCat.y = mouseY;
+            }
+        }
+        
+        function mouseReleased() {
+            if (draggedCat) {
+                draggedCat.isDragging = false;
+                // Give it some velocity based on drag movement
+                draggedCat.vx = (mouseX - pmouseX) * 0.3;
+                draggedCat.vy = (mouseY - pmouseY) * 0.3;
+                draggedCat = null;
+            }
+        }
+        
+        function doubleClicked() {
+            // Add a new ragdoll cat where the user double-clicks
+            cats.push(createRagdollCat(mouseX, mouseY));
+        }
+        
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+        }
+    </script>
+</body>
+</html>
+
