@@ -94,7 +94,7 @@
         }
         
         function draw() {
-            background(220, 240, 255); // Light blue background
+            background(240, 248, 255); // Lighter blue background (RGB: very light blue)
             
             // Update and draw each cat
             for (let cat of cats) {
@@ -125,8 +125,8 @@
                         cat.vx *= -0.7;
                     }
                     // Prevent cats from floating to the top - keep them in middle/lower area
-                    if (cat.y < height * 0.0) { // Keep cats from going to very top
-                        cat.y = height * 0.0;
+                    if (cat.y < height * 0.15) { // Keep cats from going to very top
+                        cat.y = height * 0.15;
                         cat.vy *= -0.7;
                     }
                     if (cat.y > height - cat.size/2) {
