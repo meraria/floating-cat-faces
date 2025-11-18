@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Floating Cat Faces</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
     <style>
@@ -13,7 +15,18 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            min-height: -webkit-fill-available;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow: hidden;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        canvas {
+            display: block;
+            touch-action: none;
         }
     </style>
 </head>
@@ -23,22 +36,52 @@
         let draggedCat = null;
         let gravity = 0.05; // Upward force for floating effect
         let damping = 0.98; // Air resistance
+        let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let lastTouchTime = 0;
         
         function setup() {
             createCanvas(windowWidth, windowHeight);
-            // Create 6 ragdoll cats with random positions
-            for (let i = 0; i < 6; i++) {
+            pixelDensity(1); // Optimize for mobile performance
+            
+            // Adjust number of cats based on device
+            let numCats = isMobile ? 4 : 6;
+            
+            // Create ragdoll cats with random positions
+            for (let i = 0; i < numCats; i++) {
                 cats.push(createRagdollCat(random(100, width - 100), random(100, height - 100)));
             }
+            
+            // Prevent default touch behaviors
+            document.addEventListener('touchstart', function(e) {
+                if (e.touches.length > 1) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            
+            document.addEventListener('touchmove', function(e) {
+                if (e.touches.length > 1) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            
+            document.addEventListener('touchend', function(e) {
+                e.preventDefault();
+            }, { passive: false });
         }
         
         function createRagdollCat(x, y) {
+            // Smaller cats on mobile for better performance
+            let minSize = isMobile ? 50 : 70;
+            let maxSize = isMobile ? 85 : 110;
+            
             return {
                 x: x,
                 y: y,
                 vx: random(-2, 2),
                 vy: random(-2, 2),
-                size: random(70, 110),
+                size: random(minSize, maxSize),
                 rotation: 0,
                 rotationSpeed: random(-0.02, 0.02),
                 isDragging: false
@@ -166,10 +209,24 @@
         }
         
         function mousePressed() {
-            // Check if mouse is over any cat
+            handleInteraction(mouseX, mouseY);
+        }
+        
+        function touchStarted() {
+            if (touches.length > 0) {
+                let touch = touches[0];
+                touchStartX = touch.x;
+                touchStartY = touch.y;
+                handleInteraction(touch.x, touch.y);
+            }
+            return false; // Prevent default
+        }
+        
+        function handleInteraction(x, y) {
+            // Check if interaction is over any cat
             for (let i = cats.length - 1; i >= 0; i--) {
                 let cat = cats[i];
-                let d = dist(mouseX, mouseY, cat.x, cat.y);
+                let d = dist(x, y, cat.x, cat.y);
                 if (d < cat.size / 2) {
                     draggedCat = cat;
                     cat.isDragging = true;
@@ -187,23 +244,67 @@
             }
         }
         
+        function touchMoved() {
+            if (draggedCat && touches.length > 0) {
+                let touch = touches[0];
+                draggedCat.x = touch.x;
+                draggedCat.y = touch.y;
+            }
+            return false; // Prevent scrolling
+        }
+        
         function mouseReleased() {
+            releaseCat();
+        }
+        
+        function touchEnded() {
+            let touch = touches.length > 0 ? touches[0] : null;
+            
+            if (draggedCat && touch) {
+                // Calculate velocity from touch movement
+                draggedCat.vx = (touch.x - touchStartX) * 0.2;
+                draggedCat.vy = (touch.y - touchStartY) * 0.2;
+            }
+            releaseCat();
+            
+            // Handle double tap to add cat
+            let currentTime = Date.now();
+            if (touch && currentTime - lastTouchTime < 300) {
+                cats.push(createRagdollCat(touch.x, touch.y));
+            }
+            lastTouchTime = currentTime;
+            
+            return false;
+        }
+        
+        function releaseCat() {
             if (draggedCat) {
                 draggedCat.isDragging = false;
                 // Give it some velocity based on drag movement
-                draggedCat.vx = (mouseX - pmouseX) * 0.3;
-                draggedCat.vy = (mouseY - pmouseY) * 0.3;
+                if (!isMobile) {
+                    draggedCat.vx = (mouseX - pmouseX) * 0.3;
+                    draggedCat.vy = (mouseY - pmouseY) * 0.3;
+                }
                 draggedCat = null;
             }
         }
         
         function doubleClicked() {
-            // Add a new ragdoll cat where the user double-clicks
-            cats.push(createRagdollCat(mouseX, mouseY));
+            // Add a new ragdoll cat where the user double-clicks (desktop only)
+            if (!isMobile) {
+                cats.push(createRagdollCat(mouseX, mouseY));
+            }
         }
         
         function windowResized() {
             resizeCanvas(windowWidth, windowHeight);
+            // Reposition cats if they're outside bounds after resize
+            for (let cat of cats) {
+                if (cat.x < cat.size/2) cat.x = cat.size/2;
+                if (cat.x > width - cat.size/2) cat.x = width - cat.size/2;
+                if (cat.y < cat.size/2) cat.y = cat.size/2;
+                if (cat.y > height - cat.size/2) cat.y = height - cat.size/2;
+            }
         }
     </script>
 </body>
