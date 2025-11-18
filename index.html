@@ -34,8 +34,8 @@
     <script>
         let cats = [];
         let draggedCat = null;
-        let gravity = 0.08; // Upward force for floating effect (increased)
-        let damping = 0.98; // Air resistance
+        let gravity = 0.0; // Zero gravity - cats won't float to top (0.0 = no upward force, 0.05 = light float up, 0.08+ = floats to top)
+        let damping = 0.995; // Less resistance for space-like movement (0.98 = normal, 0.995 = space-like, 1.0 = no resistance)
         let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         let touchStartX = 0;
         let touchStartY = 0;
@@ -82,8 +82,8 @@
             return {
                 x: x,
                 y: y,
-                vx: random(-2.5, 2.5), // Slightly faster initial velocity
-                vy: random(-2.5, 2.5),
+                vx: random(-3, 3), // Faster initial velocity for space-like movement
+                vy: random(-3, 3),
                 size: random(minSize, maxSize),
                 rotation: 0,
                 rotationSpeed: random(-0.03, 0.03), // More rotation
@@ -102,10 +102,10 @@
                     // Apply gravity (upward force for floating effect)
                     cat.vy -= gravity;
                     
-                    // Add floating motion (gentle drift)
+                    // Add floating motion (gentle drift) - increase multiplier for more space-like drift
                     cat.floatOffset += cat.floatSpeed;
-                    let floatX = cos(cat.floatOffset) * 0.5;
-                    let floatY = sin(cat.floatOffset * 0.7) * 0.5;
+                    let floatX = cos(cat.floatOffset) * 1.0; // Increased from 0.5 for more space-like movement
+                    let floatY = sin(cat.floatOffset * 0.7) * 1.0; // Increased from 0.5 for more space-like movement
                     
                     // Update position with floating motion
                     cat.x += cat.vx + floatX;
@@ -124,8 +124,9 @@
                         cat.x = width - cat.size/2;
                         cat.vx *= -0.7;
                     }
-                    if (cat.y < cat.size/2) {
-                        cat.y = cat.size/2;
+                    // Prevent cats from floating to the top - keep them in middle/lower area
+                    if (cat.y < height * 0.0) { // Keep cats from going to very top
+                        cat.y = height * 0.0;
                         cat.vy *= -0.7;
                     }
                     if (cat.y > height - cat.size/2) {
